@@ -1,0 +1,12 @@
+/dist/*
+/dist
+/build/*
+/build
+/rover_arm.egg-info/*
+/rover_arm.egg-info
+kc_place.py
+kc.py
+/rover_arm/__pycache__
+/rover_arm/__pycache__/*
+/rover_arm/envs/__pycache__
+/rover_arm/envs/__pycache__/*

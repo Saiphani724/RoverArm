@@ -34,8 +34,8 @@ class RoverArmToPlaceEnv(gym.Env):
 
         p.resetDebugVisualizerCamera(cameraDistance= self._cam_dist , cameraYaw= self._cam_yaw, cameraPitch= self._cam_pitch, cameraTargetPosition=self._cam_target_p)
         self.action_space = spaces.Box(np.array([-1,-0.6] + [-1]*4), np.array([1,0.6] + [1]*4))
-        self.boundary = 5
-        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary] + [-1]*5), np.array([self.boundary, self.boundary] + [1]*5))
+        self.boundary = 7
+        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary] + [-1]*3 + [0,0]), np.array([self.boundary, self.boundary] + [1]*3 + [0.07] * 2))
 
         # Joint indices as found by p.getJointInfo()
         self.steering_joints = [0, 2]
@@ -62,7 +62,7 @@ class RoverArmToPlaceEnv(gym.Env):
         rest_poses = [0,-0.215,0,-2.57,0,2.356,2.356,0.08,0.08]
         
         x_pos = np.random.choice([random.uniform(-1, -0.3), random.uniform(1.25,2)])
-        y_pos = random.uniform(-1,3)
+        y_pos = random.uniform(-1,2)
         
         BASE_DIR = site.getsitepackages()[0] + "/rover_arm/data/"
         self.roverarmUid = p.loadURDF(BASE_DIR + "rover_arm.xml", basePosition=[ x_pos, y_pos ,-0.5])
@@ -76,9 +76,20 @@ class RoverArmToPlaceEnv(gym.Env):
         tableUid = p.loadURDF(os.path.join(self._urdfRoot, "table/table.urdf"),basePosition=[0.5,0,-0.65], globalScaling = 0.5)
         trayUid = p.loadURDF(os.path.join(self._urdfRoot, "tray/traybox.urdf"),basePosition=[0.45,0,-0.335], globalScaling = 0.5)
 
+        targetTableUid = p.loadURDF(os.path.join(self._urdfRoot, "table/table.urdf"),basePosition=[3.5,3.5,-0.65], globalScaling = 0.5)
+        self.ttc = [3.45, 3.5, -0.335] # target_tray_center
+        targetTrayUid = p.loadURDF(os.path.join(self._urdfRoot, "tray/traybox.urdf"),basePosition=self.ttc, globalScaling = 0.5)
+
+
         state_object= [random.uniform(0.4, 0.5), random.uniform(-0.05, 0.05), -0.2]
         self.objectUid = p.loadURDF(os.path.join(self._urdfRoot, "random_urdfs/000/000.urdf"), basePosition=state_object, globalScaling = 0.8)
-
+        
+        self.tx_min = self.ttc[0] - 0.1
+        self.tx_max = self.ttc[0] + 0.1
+        self.ty_min = self.ttc[1] - 0.1
+        self.ty_max = self.ttc[1] + 0.1
+        self.tz = self.ttc[2] + 0.05
+        
         state_rover = p.getLinkState(self.roverarmUid, 0)[0][:2]
         state_arm = p.getLinkState(self.roverarmUid, 18)[0]
         state_fingers = (p.getJointState(self.roverarmUid,16)[0], p.getJointState(self.roverarmUid, 17)[0])
@@ -145,7 +156,8 @@ class RoverArmToPlaceEnv(gym.Env):
         state_arm = p.getLinkState(self.roverarmUid, 18)[0]
         state_fingers = (p.getJointState(self.roverarmUid,16)[0], p.getJointState(self.roverarmUid, 17)[0])
 
-        if state_object[2] > 0:
+        ox, oy, oz = state_object
+        if oz < self.tz and ox > self.tx_min and ox < self.tx_max and oy > self.ty_min and oy < self.ty_max:
             reward = 1
             done = True
             self.close()
@@ -159,7 +171,12 @@ class RoverArmToPlaceEnv(gym.Env):
             inBound = inBound and ry > -self.boundary and ry < self.boundary
             return inBound
         
-        if self.step_counter > self._maxSteps or not inGame(state_rover):
+        if not inGame(state_rover):
+            reward = -1
+            done = True
+            self.close()
+
+        if self.step_counter > self._maxSteps:
             reward = 0
             done = True
             self.close()
@@ -192,6 +209,13 @@ class RoverArmToPlaceEnv(gym.Env):
                                                             pitch=-70,
                                                             roll=0,
                                                             upAxisIndex=2)
+        view_matrix3 = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=[3.7, 3.5, 0.05],
+                                                            distance=.7,
+                                                            yaw=90,
+                                                            pitch=-70,
+                                                            roll=0,
+                                                            upAxisIndex=2)
+
         proj_matrix = p.computeProjectionMatrixFOV(fov=60,
                                                      aspect=float(960) /720,
                                                      nearVal=0.1,
@@ -209,14 +233,25 @@ class RoverArmToPlaceEnv(gym.Env):
                                               projectionMatrix=proj_matrix,
                                               renderer=p.ER_BULLET_HARDWARE_OPENGL)
 
+        (_, _, px3, _, _) = p.getCameraImage(width=960,
+                                              height=720,
+                                              viewMatrix=view_matrix3,
+                                              projectionMatrix=proj_matrix,
+                                              renderer=p.ER_BULLET_HARDWARE_OPENGL)
+
+
+
         rgb_array1 = np.array(px1, dtype=np.uint8)
         rgb_array1 = np.reshape(rgb_array1, (720,960, 4))[:, :, :3]
         
         rgb_array2 = np.array(px2, dtype=np.uint8)
         rgb_array2 = np.reshape(rgb_array2, (720,960, 4))[:, :, :3]
 
+        rgb_array3 = np.array(px3, dtype=np.uint8)
+        rgb_array3 = np.reshape(rgb_array3, (720,960, 4))[:, :, :3]
+
         
-        rgb_array = np.concatenate((rgb_array1 , rgb_array2), axis = 0)
+        rgb_array = np.concatenate((rgb_array1 , rgb_array2, rgb_array3), axis = 0)
         
         return rgb_array
     

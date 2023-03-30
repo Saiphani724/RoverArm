@@ -35,7 +35,7 @@ class RoverArmEnv(gym.Env):
         p.resetDebugVisualizerCamera(cameraDistance= self._cam_dist , cameraYaw= self._cam_yaw, cameraPitch= self._cam_pitch, cameraTargetPosition=self._cam_target_p)
         self.action_space = spaces.Box(np.array([-1,-0.6] + [-1]*4), np.array([1,0.6] + [1]*4))
         self.boundary = 5
-        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary] + [-1]*5), np.array([self.boundary, self.boundary] + [1]*5))
+        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary] + [-1]*3 + [0,0]), np.array([self.boundary, self.boundary] + [1]*3 + [0.07] * 2))
 
         # Joint indices as found by p.getJointInfo()
         self.steering_joints = [0, 2]
@@ -62,7 +62,7 @@ class RoverArmEnv(gym.Env):
         rest_poses = [0,-0.215,0,-2.57,0,2.356,2.356,0.08,0.08]
         
         x_pos = np.random.choice([random.uniform(-1, -0.3), random.uniform(1.25,2)])
-        y_pos = random.uniform(-1,3)
+        y_pos = random.uniform(-1, 2.5)
         
         BASE_DIR = site.getsitepackages()[0] + "/rover_arm/data/"
         self.roverarmUid = p.loadURDF(BASE_DIR + "rover_arm.xml", basePosition=[ x_pos, y_pos ,-0.5])
@@ -159,7 +159,12 @@ class RoverArmEnv(gym.Env):
             inBound = inBound and ry > -self.boundary and ry < self.boundary
             return inBound
         
-        if self.step_counter > self._maxSteps or not inGame(state_rover):
+        if not inGame(state_rover):
+            reward = -1
+            done = True
+            self.close()
+
+        if self.step_counter > self._maxSteps:
             reward = 0
             done = True
             self.close()
