@@ -1,5 +1,9 @@
 A OpenAI Gym Env for Rover with Arm
 
+Project Overview
+
+https://docs.google.com/presentation/d/1NnCJ13qy9eBprIPJsYDFgFuNXPIBvIbRBtx6BVz_si8/edit#slide=id.p3
+
 Task1 - Move the cart near the table and pick up the object in the tray
 
 Reward = 1 (when the object is picked up)

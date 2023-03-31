@@ -14,12 +14,15 @@ import site
 class RoverArmToPlaceEnv(gym.Env):
     metadata = {'render.modes': ['human' , 'rgb_array']}
 
-    def __init__(self, render_mode = 'rgb_array', maxSteps=50 * 1000, isDiscrete=False, urdfRoot = pybullet_data.getDataPath()):
+    def __init__(self, render_mode = 'rgb_array', maxSteps=50 * 1000, isDiscrete=False, urdfRoot = pybullet_data.getDataPath(),
+    width = 48, height = 48):
         self.render_mode = render_mode
         self._isDiscrete = isDiscrete
         self._timeStep = 1. / 240.
         self._urdfRoot = urdfRoot
         self._maxSteps = maxSteps
+        self._width = width
+        self._height = height
         if self.render_mode == 'human':
             cid = p.connect(p.SHARED_MEMORY)
             if (cid < 0):
@@ -188,13 +191,16 @@ class RoverArmToPlaceEnv(gym.Env):
         return np.array(self.observation).astype(np.float32), reward, done, info
 
 
-    def render(self):
+    def render(self, width = None, height = None):
         # cam = p.getDebugVisualizerCamera()
         # xyz = cam[11]
         # x= float(xyz[0]) + 0.125
         # y = xyz[1]
         # z = xyz[2]
         # p.resetDebugVisualizerCamera(cameraYaw = cam[8], cameraPitch= cam[9],cameraDistance = cam[10],cameraTargetPosition=[x,y,z])
+        if width == None or height == None:
+            width = self._width
+            height = self._height
         if self.render_mode != 'rgb_array':
             return None
         view_matrix1 = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=self._cam_target_p,
@@ -217,24 +223,24 @@ class RoverArmToPlaceEnv(gym.Env):
                                                             upAxisIndex=2)
 
         proj_matrix = p.computeProjectionMatrixFOV(fov=60,
-                                                     aspect=float(960) /720,
+                                                     aspect=float(width) /height,
                                                      nearVal=0.1,
                                                      farVal=100.0)
         
-        (_, _, px1, _, _) = p.getCameraImage(width=960,
-                                              height=720,
+        (_, _, px1, _, _) = p.getCameraImage(width=width,
+                                              height=height,
                                               viewMatrix=view_matrix1,
                                               projectionMatrix=proj_matrix,
                                               renderer=p.ER_BULLET_HARDWARE_OPENGL)
         
-        (_, _, px2, _, _) = p.getCameraImage(width=960,
-                                              height=720,
+        (_, _, px2, _, _) = p.getCameraImage(width=width,
+                                              height=height,
                                               viewMatrix=view_matrix2,
                                               projectionMatrix=proj_matrix,
                                               renderer=p.ER_BULLET_HARDWARE_OPENGL)
 
-        (_, _, px3, _, _) = p.getCameraImage(width=960,
-                                              height=720,
+        (_, _, px3, _, _) = p.getCameraImage(width=width,
+                                              height=height,
                                               viewMatrix=view_matrix3,
                                               projectionMatrix=proj_matrix,
                                               renderer=p.ER_BULLET_HARDWARE_OPENGL)
@@ -242,13 +248,13 @@ class RoverArmToPlaceEnv(gym.Env):
 
 
         rgb_array1 = np.array(px1, dtype=np.uint8)
-        rgb_array1 = np.reshape(rgb_array1, (720,960, 4))[:, :, :3]
+        rgb_array1 = np.reshape(rgb_array1, (height,width, 4))[:, :, :3]
         
         rgb_array2 = np.array(px2, dtype=np.uint8)
-        rgb_array2 = np.reshape(rgb_array2, (720,960, 4))[:, :, :3]
+        rgb_array2 = np.reshape(rgb_array2, (height,width, 4))[:, :, :3]
 
         rgb_array3 = np.array(px3, dtype=np.uint8)
-        rgb_array3 = np.reshape(rgb_array3, (720,960, 4))[:, :, :3]
+        rgb_array3 = np.reshape(rgb_array3, (height,width, 4))[:, :, :3]
 
         
         rgb_array = np.concatenate((rgb_array1 , rgb_array2, rgb_array3), axis = 0)
