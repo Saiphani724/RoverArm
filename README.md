@@ -32,6 +32,14 @@ print(reward, done, info)
 
 You can try to explore the environment and action space by controlling the bot using Keyboard.
 
+You will have to install the dev version in local, and give keyboard access to terminal or IDE where code is being executed. To install in dev version you could do
+
+```
+
+pip install 'rover-arm[dev]'
+
+```
+
 
 Keyboard Controls
 
@@ -47,7 +55,7 @@ A, D -> Move the end-effector in X-axis
 
 W, S -> Move the end-effector in Y-axis
 
-Q, E -> Move the end-effector in Y-axis
+Q, E -> Move the end-effector in Z-axis
 
 -, + -> Open / Close the fingers of the robot arm
 

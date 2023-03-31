@@ -3,7 +3,7 @@ from pathlib import Path
 
 setuptools.setup(
     name='rover_arm',
-    version='1.0.5',
+    version='1.0.6',
     description="A OpenAI Gym Env for Rover with Arm",
     long_description=Path("README.md").read_text(),
     long_description_content_type="text/markdown",

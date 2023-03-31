@@ -4,8 +4,7 @@
 /build
 /rover_arm.egg-info/*
 /rover_arm.egg-info
-kc_place.py
-kc.py
+sample.py
 /rover_arm/__pycache__
 /rover_arm/__pycache__/*
 /rover_arm/envs/__pycache__
