@@ -189,8 +189,8 @@ class RoverArmEnv(gym.Env):
         if width == None or height == None:
             width = self._width
             height = self._height
-        # if self.render_mode != 'rgb_array':
-        #     return None
+        if self.render_mode != 'rgb_array':
+            return None
         view_matrix1 = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=self._cam_target_p,
                                                             distance=self._cam_dist,
                                                             yaw=self._cam_yaw,
