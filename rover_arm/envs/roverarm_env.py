@@ -14,7 +14,7 @@ import site
 class RoverArmEnv(gym.Env):
     metadata = {'render.modes': ['human' , 'rgb_array']}
 
-    def __init__(self, render_mode = 'rgb_array', maxSteps=50 * 1000, isDiscrete=False, urdfRoot = pybullet_data.getDataPath(), 
+    def __init__(self, render_mode = 'rgb_array', maxSteps=10 * 1000, isDiscrete=False, urdfRoot = pybullet_data.getDataPath(), 
     width = 48, height = 48):
         self.render_mode = render_mode
         self._isDiscrete = isDiscrete
@@ -101,6 +101,7 @@ class RoverArmEnv(gym.Env):
         currentPose = p.getLinkState(self.roverarmUid, 18)
         
         currentPosition = currentPose[0]
+        
         newPosition = [currentPosition[0] + dx_a,
                        currentPosition[1] + dy_a,
                        currentPosition[2] + dz_a]
@@ -141,6 +142,8 @@ class RoverArmEnv(gym.Env):
             targetVelocities=[self.joint_speed] * 4,
             forces=[10] * 4)
         
+        state_object_prev, _ = p.getBasePositionAndOrientation(self.objectUid)
+
         p.stepSimulation()
 
         state_object, _ = p.getBasePositionAndOrientation(self.objectUid)
@@ -148,13 +151,19 @@ class RoverArmEnv(gym.Env):
         state_arm = p.getLinkState(self.roverarmUid, 18)[0]
         state_fingers = (p.getJointState(self.roverarmUid,16)[0], p.getJointState(self.roverarmUid, 17)[0])
 
+        terminated , truncated = False, False
         if state_object[2] > 0:
             reward = 1
-            done = True
-            self.close()
+            terminated = True
         else:
-            reward = 0
-            done = False
+            x0, y0, z0 = np.abs(np.array(currentPosition) - np.array(state_object_prev))
+            x1, y1, z1 = np.abs(np.array(state_arm) - np.array(state_object))
+            reward = x0 - x1 + y0 - y1 + z0 - z1
+            if abs(reward) > 1e-3:
+                reward = reward/ 10
+            else:
+                reward = 0
+
         self.step_counter += 1
         def inGame(state_rover):
             rx, ry = state_rover
@@ -164,19 +173,17 @@ class RoverArmEnv(gym.Env):
         
         if not inGame(state_rover):
             reward = -1
-            done = True
-            self.close()
+            terminated = True
 
         if self.step_counter > self._maxSteps:
             reward = 0
-            done = True
-            self.close()
+            truncated = True
 
         info = {'object_position': state_object}
 
         self.observation = state_rover + state_arm + state_fingers
         
-        return np.array(self.observation).astype(np.float32), reward, done, info
+        return np.array(self.observation).astype(np.float32), reward, terminated, truncated, info
 
 
     def render(self, width = None, height = None):
