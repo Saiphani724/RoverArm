@@ -4,8 +4,8 @@ import pybullet as p
 class KeyboardAction:
     def __init__(self):
         self.action = [0,0,0,0,0,0]
-        self.df = 0.01
-        self.df_max = 0.07
+        self.df = 0.1
+        self.df_max = 1
         self.da = 0.1
         self.da_max = 1
         self.dr = 0.1
@@ -39,7 +39,7 @@ class KeyboardAction:
                 if self.action[5] < self.df_max:
                     self.action[5] += self.df
             elif key.char == "-":
-                if self.action[5] > 1e-6:
+                if self.action[5] > -1 :
                     self.action[5] -= self.df
             # print(key.char)
 

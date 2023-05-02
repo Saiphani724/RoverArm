@@ -1,6 +1,6 @@
-import gym 
-from gym import error, spaces, utils
-from gym.utils import seeding
+import gymnasium as gym 
+from gymnasium import error, spaces, utils
+from gymnasium.utils import seeding
 
 import os
 import pybullet as p
@@ -15,7 +15,7 @@ class RoverArmEnv(gym.Env):
     metadata = {'render.modes': ['human' , 'rgb_array']}
 
     def __init__(self, render_mode = 'rgb_array', maxSteps=10 * 1000, isDiscrete=False, urdfRoot = pybullet_data.getDataPath(), 
-    width = 48, height = 48):
+    width = 480, height = 480):
         self.render_mode = render_mode
         self._isDiscrete = isDiscrete
         self._timeStep = 1. / 240.
@@ -36,9 +36,9 @@ class RoverArmEnv(gym.Env):
         self._cam_target_p = [0.67, -0.35, 0.20]
 
         p.resetDebugVisualizerCamera(cameraDistance= self._cam_dist , cameraYaw= self._cam_yaw, cameraPitch= self._cam_pitch, cameraTargetPosition=self._cam_target_p)
-        self.action_space = spaces.Box(np.array([-1,-0.6] + [-1]*4), np.array([1,0.6] + [1]*4))
+        self.action_space = spaces.Box(np.array([-1]*6), np.array([1]*6))
         self.boundary = 5
-        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary] + [-1]*3 + [0,0]), np.array([self.boundary, self.boundary] + [1]*3 + [0.07] * 2))
+        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary, -1, -1, -1, 0,0 , -self.boundary, -self.boundary, -1]), np.array([self.boundary, self.boundary, 1, 1, 1, 0.07, 0.07, self.boundary, self.boundary, 1]))
 
         # Joint indices as found by p.getJointInfo()
         self.steering_joints = [0, 2]
@@ -68,6 +68,7 @@ class RoverArmEnv(gym.Env):
         y_pos = random.uniform(-1, 2.5)
         
         BASE_DIR = site.getsitepackages()[0] + "/rover_arm/data/"
+        # BASE_DIR = "./rover_arm/data/"
         self.roverarmUid = p.loadURDF(BASE_DIR + "rover_arm.xml", basePosition=[ x_pos, y_pos ,-0.5])
 
 
@@ -85,11 +86,13 @@ class RoverArmEnv(gym.Env):
         state_rover = p.getLinkState(self.roverarmUid, 0)[0][:2]
         state_arm = p.getLinkState(self.roverarmUid, 18)[0]
         state_fingers = (p.getJointState(self.roverarmUid,16)[0], p.getJointState(self.roverarmUid, 17)[0])
-        
-        self.observation = state_rover + state_arm + state_fingers
+        state_object, _ = p.getBasePositionAndOrientation(self.objectUid)
+
+        self.observation = state_rover + state_arm + state_fingers + tuple(state_object)
         
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING,1)
-        return np.array(self.observation).astype(np.float32)
+        info = {'state_rover': state_rover, 'state_arm' : state_arm, 'state_fingers': state_fingers, 'state_object': state_object}
+        return (np.array(self.observation).astype(np.float32), info)
 
     def step(self, action):
         # p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING)
@@ -97,6 +100,7 @@ class RoverArmEnv(gym.Env):
         dv = 0.05
         dx_a, dy_a, dz_a  = [x * dv for x in action[2:5] ]
         fingers = action[5]
+        fingers = np.interp(fingers, [-1,1], [0, 0.07])
 
         currentPose = p.getLinkState(self.roverarmUid, 18)
         
@@ -114,7 +118,8 @@ class RoverArmEnv(gym.Env):
         # Clip throttle and steering angle to reasonable values
         
         throttle = min(max(throttle, -1), 1)
-        steering_angle = max(min(steering_angle, 0.6), -0.6)
+        steering_angle = np.interp(steering_angle, [-1,1], [-0.6, 0.6])
+        
 
         # Set the steering joint positions
         p.setJointMotorControlArray(self.roverarmUid, self.steering_joints,
@@ -179,10 +184,9 @@ class RoverArmEnv(gym.Env):
             reward = 0
             truncated = True
 
-        info = {'object_position': state_object}
+        self.observation = state_rover + state_arm + state_fingers + tuple(state_object)
+        info = {'state_rover': state_rover, 'state_arm' : state_arm, 'state_fingers': state_fingers, 'state_object': state_object}
 
-        self.observation = state_rover + state_arm + state_fingers
-        
         return np.array(self.observation).astype(np.float32), reward, terminated, truncated, info
 
 
@@ -234,7 +238,7 @@ class RoverArmEnv(gym.Env):
         rgb_array2 = np.reshape(rgb_array2, (height,width, 4))[:, :, :3]
 
         
-        rgb_array = np.concatenate((rgb_array1 , rgb_array2), axis = 0)
+        rgb_array = np.concatenate((rgb_array1 , rgb_array2), axis = 2)
         
         return rgb_array
     
