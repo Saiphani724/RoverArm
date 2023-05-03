@@ -53,10 +53,10 @@ class RoverArmEnv(gym.Env):
         
         self.MAX_SPEED = 20
 
-    def reset(self, seed = 42):
+    def reset(self, seed = None):
         random.seed(seed)
         np.random.seed(seed)
-        
+
         self.step_counter = 0
         p.resetSimulation()
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING,0) # we will enable rendering after we loaded everything
