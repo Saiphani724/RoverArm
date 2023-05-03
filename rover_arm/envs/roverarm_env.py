@@ -12,10 +12,10 @@ import site
 
 
 class RoverArmEnv(gym.Env):
-    metadata = {'render.modes': ['human' , 'rgb_array']}
 
     def __init__(self, render_mode = 'rgb_array', maxSteps=10 * 1000, isDiscrete=False, urdfRoot = pybullet_data.getDataPath(), 
     width = 480, height = 480):
+        self.metadata = {'render.modes': ['human' , 'rgb_array']}
         self.render_mode = render_mode
         self._isDiscrete = isDiscrete
         self._timeStep = 1. / 240.
@@ -38,7 +38,7 @@ class RoverArmEnv(gym.Env):
         p.resetDebugVisualizerCamera(cameraDistance= self._cam_dist , cameraYaw= self._cam_yaw, cameraPitch= self._cam_pitch, cameraTargetPosition=self._cam_target_p)
         self.action_space = spaces.Box(np.array([-1]*6), np.array([1]*6))
         self.boundary = 5
-        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary, -1, -1, -1, 0,0 , -self.boundary, -self.boundary, -1]), np.array([self.boundary, self.boundary, 1, 1, 1, 0.07, 0.07, self.boundary, self.boundary, 1]))
+        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary, -self.boundary, -self.boundary, -1, 0,0 , -self.boundary, -self.boundary, -1]), np.array([self.boundary, self.boundary, self.boundary, self.boundary, 1, 0.07, 0.07, self.boundary, self.boundary, 1]))
 
         # Joint indices as found by p.getJointInfo()
         self.steering_joints = [0, 2]
@@ -53,7 +53,10 @@ class RoverArmEnv(gym.Env):
         
         self.MAX_SPEED = 20
 
-    def reset(self):
+    def reset(self, seed = 42):
+        random.seed(seed)
+        np.random.seed(seed)
+        
         self.step_counter = 0
         p.resetSimulation()
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING,0) # we will enable rendering after we loaded everything
