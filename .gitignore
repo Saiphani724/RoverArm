@@ -4,8 +4,10 @@
 /build
 /rover_arm.egg-info/*
 /rover_arm.egg-info
-sample.py
 /rover_arm/__pycache__
 /rover_arm/__pycache__/*
 /rover_arm/envs/__pycache__
 /rover_arm/envs/__pycache__/*
+
+/scripts*
+/remote*
