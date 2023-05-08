@@ -1,20 +1,18 @@
 A OpenAI Gym Env for Rover with Arm
 
-Project Overview
-
-https://docs.google.com/presentation/d/1NnCJ13qy9eBprIPJsYDFgFuNXPIBvIbRBtx6BVz_si8/edit#slide=id.p3
+Project Overview - https://1drv.ms/p/s!Aswo8fN5BKr61klitElDnhZ-JARq
 
 Task1 - Move the cart near the table and pick up the object in the tray
 
 Reward = 1 (when the object is picked up)
 
-Reward = 0 (else)
+(Else) If the bot gets close to the object it gets a small positive reward (say 0.001) and if it gets far it gets a negative reward (say -0.001).
 
 
 Code with Sample Actions
 ```
 import rover_arm
-import gym
+import gymnasium as gym
 env = gym.make('rover-arm-pick-v0', render_mode = 'rgb_array')
 
 observation = env.reset()
@@ -22,7 +20,8 @@ done = False
 
 while not done:
     action = env.action_space.sample()
-    observation, reward, done, info = env.step(action)
+    observation, reward, terminated, truncated,  info = env.step(action)
+    done = terminated or truncated
     img = env.render()
     # print(img.shape)
     print(action, observation, reward)
@@ -66,23 +65,28 @@ Code to control the bot using keyboard in human mode (needs to be run in local)
 
 
 ```
+import rover_arm
+import gymnasium as gym
 import rover_arm.keyboard_control as kc
 
-import rover_arm
-import gym
 env = gym.make('rover-arm-pick-v0', render_mode = 'human')
 
 keyboard_controller = kc.KeyboardAction()
 keyboard_controller.start_listening()
+
 
 observation = env.reset()
 done = False
 
 while not done:
     action = keyboard_controller.action
-    observation, reward, done, info = env.step(action)
-    # print(action, observation, reward)
-# print(reward, done, info)
+    observation, reward, terminated, truncated,  info = env.step(action)
+    done = terminated or truncated
+    img = env.render()
+    # print(img.shape)
+    print(action, observation, reward)
+    
+print(reward, done, info)
 ```
 
 
@@ -95,3 +99,5 @@ Use the env "rover-arm-place-v0" for task2
 env = gym.make('rover-arm-place-v0')
 
 ```
+
+Note: Task2 Env is not upto date, it uses gym style instead of gymnasium, so expect done instead of truncated and terminated.
