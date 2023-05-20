@@ -13,8 +13,8 @@ import site
 
 class RoverArmEnvGym(gym.Env):
 
-    def __init__(self, render_mode = 'rgb_array', maxSteps=10 * 1000, isDiscrete=False, urdfRoot = pybullet_data.getDataPath(), 
-    width = 480, height = 480):
+    def __init__(self, render_mode = 'rgb_array', maxSteps=10_000, isDiscrete=False, urdfRoot = pybullet_data.getDataPath(), 
+    width = 480, height = 480, all_views = False):
         self.metadata = {'render.modes': ['human' , 'rgb_array']}
         self.render_mode = render_mode
         self._isDiscrete = isDiscrete
@@ -23,6 +23,7 @@ class RoverArmEnvGym(gym.Env):
         self._maxSteps = maxSteps
         self._width = width
         self._height = height
+        self._all_views = all_views
         if self.render_mode == 'human':
             cid = p.connect(p.SHARED_MEMORY)
             if (cid < 0):
@@ -38,7 +39,8 @@ class RoverArmEnvGym(gym.Env):
         p.resetDebugVisualizerCamera(cameraDistance= self._cam_dist , cameraYaw= self._cam_yaw, cameraPitch= self._cam_pitch, cameraTargetPosition=self._cam_target_p)
         self.action_space = spaces.Box(np.array([-1]*6), np.array([1]*6))
         self.boundary = 5
-        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary, -self.boundary, -self.boundary, -1, 0,0 , -self.boundary, -self.boundary, -1]), np.array([self.boundary, self.boundary, self.boundary, self.boundary, 1, 0.07, 0.07, self.boundary, self.boundary, 1]))
+        self.max_vel = 5
+        self.observation_space = spaces.Box(np.array([-self.boundary, -self.boundary, -1, -1, -self.max_vel, -self.max_vel, -self.boundary, -self.boundary, -1, 0, 0 , -self.boundary, -self.boundary, -1]), np.array([self.boundary, self.boundary, 1, 1, self.max_vel, self.max_vel, self.boundary, self.boundary, 1, 0.07, 0.07, self.boundary, self.boundary, 1]))
 
         # Joint indices as found by p.getJointInfo()
         self.steering_joints = [0, 2]
@@ -86,7 +88,13 @@ class RoverArmEnvGym(gym.Env):
         state_object= [random.uniform(0.4, 0.5), random.uniform(-0.05, 0.05), -0.2]
         self.objectUid = p.loadURDF(os.path.join(self._urdfRoot, "random_urdfs/000/000.urdf"), basePosition=state_object, globalScaling = 0.8)
 
-        state_rover = p.getLinkState(self.roverarmUid, 0)[0][:2]
+        pos, ang = p.getBasePositionAndOrientation(self.roverarmUid, 0)
+        ang = p.getEulerFromQuaternion(ang)
+        ori = (math.cos(ang[2]), math.sin(ang[2]))
+        pos = pos[:2]
+        vel = p.getBaseVelocity(self.roverarmUid, 0)[0][0:2]
+        state_rover = pos + ori + vel
+
         state_arm = p.getLinkState(self.roverarmUid, 18)[0]
         state_fingers = (p.getJointState(self.roverarmUid,16)[0], p.getJointState(self.roverarmUid, 17)[0])
         state_object, _ = p.getBasePositionAndOrientation(self.objectUid)
@@ -94,7 +102,7 @@ class RoverArmEnvGym(gym.Env):
         self.observation = state_rover + state_arm + state_fingers + tuple(state_object)
         
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING,1)
-        info = {'state_rover': state_rover, 'state_arm' : state_arm, 'state_fingers': state_fingers, 'state_object': state_object}
+        info = {'state_rover_pos': pos, 'state_rover_ang' : ang, 'state_rover_vel' : vel ,'state_arm' : state_arm, 'state_fingers': state_fingers, 'state_object': state_object}
         return (np.array(self.observation).astype(np.float32), info)
 
     def step(self, action):
@@ -155,7 +163,15 @@ class RoverArmEnvGym(gym.Env):
         p.stepSimulation()
 
         state_object, _ = p.getBasePositionAndOrientation(self.objectUid)
-        state_rover = p.getLinkState(self.roverarmUid, 0)[0][:2]
+        
+
+        pos, ang = p.getBasePositionAndOrientation(self.roverarmUid, 0)
+        ang = p.getEulerFromQuaternion(ang)
+        ori = (math.cos(ang[2]), math.sin(ang[2]))
+        pos = pos[:2]
+        vel = p.getBaseVelocity(self.roverarmUid, 0)[0][0:2]
+        state_rover = pos + ori + vel
+
         state_arm = p.getLinkState(self.roverarmUid, 18)[0]
         state_fingers = (p.getJointState(self.roverarmUid,16)[0], p.getJointState(self.roverarmUid, 17)[0])
 
@@ -174,7 +190,7 @@ class RoverArmEnvGym(gym.Env):
 
         self.step_counter += 1
         def inGame(state_rover):
-            rx, ry = state_rover
+            rx, ry = state_rover[:2]
             inBound = rx > -self.boundary and rx < self.boundary
             inBound = inBound and ry > -self.boundary and ry < self.boundary
             return inBound
@@ -188,13 +204,12 @@ class RoverArmEnvGym(gym.Env):
             truncated = True
 
         self.observation = state_rover + state_arm + state_fingers + tuple(state_object)
-        info = {'state_rover': state_rover, 'state_arm' : state_arm, 'state_fingers': state_fingers, 'state_object': state_object}
-
+        info = {'state_rover_pos': pos, 'state_rover_ang' : ang, 'state_rover_vel' : vel ,'state_arm' : state_arm, 'state_fingers': state_fingers, 'state_object': state_object}
         done = terminated or truncated
         return np.array(self.observation).astype(np.float32), reward, done, info
 
 
-    def render(self, width = None, height = None):
+    def render(self, mode = None, width = None, height = None):
         # cam = p.getDebugVisualizerCamera()
         # xyz = cam[11]
         # x= float(xyz[0]) + 0.125
@@ -204,6 +219,8 @@ class RoverArmEnvGym(gym.Env):
         if width == None or height == None:
             width = self._width
             height = self._height
+        if mode != None:
+            self.render_mode = mode
         if self.render_mode != 'rgb_array':
             return None
         view_matrix1 = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=self._cam_target_p,
@@ -223,11 +240,18 @@ class RoverArmEnvGym(gym.Env):
                                                      nearVal=0.1,
                                                      farVal=100.0)
         
+        
         (_, _, px1, _, _) = p.getCameraImage(width=width,
                                               height=height,
                                               viewMatrix=view_matrix1,
                                               projectionMatrix=proj_matrix,
                                               renderer=p.ER_BULLET_HARDWARE_OPENGL)
+        
+        rgb_array1 = np.array(px1, dtype=np.uint8)
+        rgb_array1 = np.reshape(rgb_array1, (height,width, 4))[:, :, :3]
+        
+        if not self._all_views:
+            return rgb_array1 
         
         (_, _, px2, _, _) = p.getCameraImage(width=width,
                                               height=height,
@@ -235,15 +259,10 @@ class RoverArmEnvGym(gym.Env):
                                               projectionMatrix=proj_matrix,
                                               renderer=p.ER_BULLET_HARDWARE_OPENGL)
 
-        rgb_array1 = np.array(px1, dtype=np.uint8)
-        rgb_array1 = np.reshape(rgb_array1, (height,width, 4))[:, :, :3]
-        
         rgb_array2 = np.array(px2, dtype=np.uint8)
         rgb_array2 = np.reshape(rgb_array2, (height,width, 4))[:, :, :3]
-
         
         rgb_array = np.concatenate((rgb_array1 , rgb_array2), axis = 2)
-        
         return rgb_array
     
     def _get_state(self):

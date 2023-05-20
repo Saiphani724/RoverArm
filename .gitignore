@@ -11,3 +11,9 @@
 
 /scripts*
 /remote*
+/Results*
+hardcontrol.py
+.DS_Store
+sample.py
+rover_arm/envs/__pycache__/__init__.cpython-39.pyc
+.DS_Store

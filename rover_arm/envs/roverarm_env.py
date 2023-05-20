@@ -14,7 +14,7 @@ import site
 class RoverArmEnv(gym.Env):
 
     def __init__(self, render_mode = 'rgb_array', maxSteps=10_000, isDiscrete=False, urdfRoot = pybullet_data.getDataPath(), 
-    width = 480, height = 480):
+    width = 480, height = 480, all_views = False):
         self.metadata = {'render.modes': ['human' , 'rgb_array']}
         self.render_mode = render_mode
         self._isDiscrete = isDiscrete
@@ -23,6 +23,7 @@ class RoverArmEnv(gym.Env):
         self._maxSteps = maxSteps
         self._width = width
         self._height = height
+        self._all_views = all_views 
         if self.render_mode == 'human':
             cid = p.connect(p.SHARED_MEMORY)
             if (cid < 0):
@@ -242,6 +243,12 @@ class RoverArmEnv(gym.Env):
                                               viewMatrix=view_matrix1,
                                               projectionMatrix=proj_matrix,
                                               renderer=p.ER_BULLET_HARDWARE_OPENGL)
+
+        rgb_array1 = np.array(px1, dtype=np.uint8)
+        rgb_array1 = np.reshape(rgb_array1, (height,width, 4))[:, :, :3]
+
+        if not self._all_views:
+            return rgb_array1
         
         (_, _, px2, _, _) = p.getCameraImage(width=width,
                                               height=height,
@@ -249,8 +256,6 @@ class RoverArmEnv(gym.Env):
                                               projectionMatrix=proj_matrix,
                                               renderer=p.ER_BULLET_HARDWARE_OPENGL)
 
-        rgb_array1 = np.array(px1, dtype=np.uint8)
-        rgb_array1 = np.reshape(rgb_array1, (height,width, 4))[:, :, :3]
         
         rgb_array2 = np.array(px2, dtype=np.uint8)
         rgb_array2 = np.reshape(rgb_array2, (height,width, 4))[:, :, :3]

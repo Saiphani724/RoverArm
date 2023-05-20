@@ -13,7 +13,7 @@ Code with Sample Actions
 ```
 import rover_arm
 import gymnasium as gym
-env = gym.make('rover-arm-pick-v0', render_mode = 'rgb_array')
+env = gym.make('rover-arm-pick-v1', render_mode = 'rgb_array')
 
 observation = env.reset()
 done = False
@@ -69,7 +69,7 @@ import rover_arm
 import gymnasium as gym
 import rover_arm.keyboard_control as kc
 
-env = gym.make('rover-arm-pick-v0', render_mode = 'human')
+env = gym.make('rover-arm-pick-v1', render_mode = 'human')
 
 keyboard_controller = kc.KeyboardAction()
 keyboard_controller.start_listening()
@@ -92,11 +92,11 @@ print(reward, done, info)
 
 Task2: Pick the object from the closer tray and place it on the distant tray 
 
-Use the env "rover-arm-place-v0" for task2
+Use the env "rover-arm-place-v1" for task2
 
 ```
 
-env = gym.make('rover-arm-place-v0')
+env = gym.make('rover-arm-place-v1')
 
 ```
 
